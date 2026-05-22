@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Ciberseguridad - Honeypot & IA</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 2px solid #0f3460;
+            padding-bottom: 20px;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #aaa;
+            font-size: 1.1em;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #0f3460 0%, #16213e 100%);
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #00d4ff;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .stat-card.critica {
+            border-left-color: #ff0000;
+        }
+        
+        .stat-card.alta {
+            border-left-color: #ff6b35;
+        }
+        
+        .stat-card.media {
+            border-left-color: #ffd60a;
+        }
+        
+        .stat-card.baja {
+            border-left-color: #06d6a0;
+        }
+        
+        .stat-card h3 {
+            font-size: 0.9em;
+            color: #aaa;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+        
+        .threats-section {
+            background: linear-gradient(135deg, #0f3460 0%, #16213e 100%);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .threats-section h2 {
+            color: #00d4ff;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            background: #16213e;
+            color: #00d4ff;
+            padding: 15px;
+            text-align: left;
+            border-bottom: 2px solid #0f3460;
+        }
+        
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #0f3460;
+        }
+        
+        tr:hover {
+            background: rgba(0, 212, 255, 0.05);
+        }
+        
+        .severity-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.85em;
+            text-transform: uppercase;
+        }
+        
+        .severity-critica {
+            background: #ff0000;
+            color: white;
+        }
+        
+        .severity-alta {
+            background: #ff6b35;
+            color: white;
+        }
+        
+        .severity-media {
+            background: #ffd60a;
+            color: black;
+        }
+        
+        .severity-baja {
+            background: #06d6a0;
+            color: white;
+        }
+        
+        .tipo-badge {
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        
+        .status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        .status.active {
+            background: #06d6a0;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .empty-state {
+            text-align: center;
+            color: #666;
+            padding: 40px;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #666;
+            padding-top: 20px;
+            border-top: 1px solid #0f3460;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔒 Dashboard Ciberseguridad</h1>
+            <p class="subtitle">Sistema de Honeypot & Análisis de IA</p>
+        </header>
+        
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <h3>Total Amenazas</h3>
+                <div class="stat-value" id="totalThreats">0</div>
+            </div>
+            <div class="stat-card critica">
+                <h3>Críticas</h3>
+                <div class="stat-value" id="criticalThreats">0</div>
+            </div>
+            <div class="stat-card alta">
+                <h3>Altas</h3>
+                <div class="stat-value" id="highThreats">0</div>
+            </div>
+            <div class="stat-card media">
+                <h3>Medias</h3>
+                <div class="stat-value" id="mediumThreats">0</div>
+            </div>
+            <div class="stat-card baja">
+                <h3>Bajas</h3>
+                <div class="stat-value" id="lowThreats">0</div>
+            </div>
+        </div>
+        
+        <div class="threats-section">
+            <h2><span class="status active"></span>Amenazas Detectadas</h2>
+            <table id="threatsTable">
+                <thead>
+                    <tr>
+                        <th>IP</th>
+                        <th>Puerto</th>
+                        <th>Tipo</th>
+                        <th>Severidad</th>
+                        <th>Fecha/Hora</th>
+                    </tr>
+                </thead>
+                <tbody id="threatsList">
+                    <tr>
+                        <td colspan="5" class="empty-state">Esperando amenazas...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="footer">
+            <p>🍯 Honeypot en tiempo real | 🤖 Análisis con IA | 📊 Monitoreo de Seguridad</p>
+        </div>
+    </div>
+    
+    <script>
+        // Actualizar datos cada 2 segundos
+        function actualizarDatos() {
+            // Obtener estadísticas
+            fetch('/api/stats')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('totalThreats').textContent = data.total_amenazas;
+                    document.getElementById('criticalThreats').textContent = data.criticas;
+                    document.getElementById('highThreats').textContent = data.altas;
+                    document.getElementById('mediumThreats').textContent = data.medias;
+                    document.getElementById('lowThreats').textContent = data.bajas;
+                });
+            
+            // Obtener amenazas
+            fetch('/api/threats')
+                .then(r => r.json())
+                .then(threats => {
+                    const tbody = document.getElementById('threatsList');
+                    
+                    if (threats.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Esperando amenazas...</td></tr>';
+                        return;
+                    }
+                    
+                    tbody.innerHTML = threats.map(t => `
+                        <tr>
+                            <td>${t.ip}</td>
+                            <td>${t.puerto}</td>
+                            <td><span class="tipo-badge">${t.tipo}</span></td>
+                            <td><span class="severity-badge severity-${t.severidad}">${t.severidad}</span></td>
+                            <td>${new Date(t.timestamp).toLocaleString('es-ES')}</td>
+                        </tr>
+                    `).join('');
+                });
+        }
+        
+        // Actualizar al cargar
+        actualizarDatos();
+        
+        // Actualizar cada 2 segundos
+        setInterval(actualizarDatos, 2000);
+    </script>
+</body>
+</html>
