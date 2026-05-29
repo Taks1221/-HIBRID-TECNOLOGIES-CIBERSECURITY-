@@ -248,18 +248,77 @@
     </div>
     
     <script>
+        // Función para escapar caracteres HTML (seguridad contra XSS)
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Función para validar si una severidad es válida
+        function isValidSeverity(severity) {
+            const validSeverities = ['critica', 'alta', 'media', 'baja'];
+            return validSeverities.includes(severity.toLowerCase());
+        }
+
+        // Función para crear una fila de amenaza de forma segura
+        function crearFilaAmenaza(t) {
+            const row = document.createElement('tr');
+            
+            // Crear celdas con textContent (evita XSS)
+            const cellIp = document.createElement('td');
+            cellIp.textContent = t.ip || '';
+            row.appendChild(cellIp);
+            
+            const cellPuerto = document.createElement('td');
+            cellPuerto.textContent = t.puerto || '';
+            row.appendChild(cellPuerto);
+            
+            const cellTipo = document.createElement('td');
+            const tipoBadge = document.createElement('span');
+            tipoBadge.className = 'tipo-badge';
+            tipoBadge.textContent = t.tipo || '';
+            cellTipo.appendChild(tipoBadge);
+            row.appendChild(cellTipo);
+            
+            const cellSeveridad = document.createElement('td');
+            const severidadBadge = document.createElement('span');
+            const severidadLower = (t.severidad || '').toLowerCase();
+            severidadBadge.className = `severity-badge severity-${isValidSeverity(severidadLower) ? severidadLower : 'baja'}`;
+            severidadBadge.textContent = t.severidad || '';
+            cellSeveridad.appendChild(severidadBadge);
+            row.appendChild(cellSeveridad);
+            
+            const cellFecha = document.createElement('td');
+            try {
+                const fecha = new Date(t.timestamp);
+                cellFecha.textContent = fecha.toLocaleString('es-ES');
+            } catch (e) {
+                cellFecha.textContent = 'Fecha inválida';
+            }
+            row.appendChild(cellFecha);
+            
+            return row;
+        }
+
         // Actualizar datos cada 2 segundos
         function actualizarDatos() {
             // Obtener estadísticas
             fetch('/api/stats')
                 .then(r => r.json())
                 .then(data => {
-                    document.getElementById('totalThreats').textContent = data.total_amenazas;
-                    document.getElementById('criticalThreats').textContent = data.criticas;
-                    document.getElementById('highThreats').textContent = data.altas;
-                    document.getElementById('mediumThreats').textContent = data.medias;
-                    document.getElementById('lowThreats').textContent = data.bajas;
-                });
+                    document.getElementById('totalThreats').textContent = data.total_amenazas || 0;
+                    document.getElementById('criticalThreats').textContent = data.criticas || 0;
+                    document.getElementById('highThreats').textContent = data.altas || 0;
+                    document.getElementById('mediumThreats').textContent = data.medias || 0;
+                    document.getElementById('lowThreats').textContent = data.bajas || 0;
+                })
+                .catch(error => console.error('Error al obtener estadísticas:', error));
             
             // Obtener amenazas
             fetch('/api/threats')
@@ -267,21 +326,28 @@
                 .then(threats => {
                     const tbody = document.getElementById('threatsList');
                     
-                    if (threats.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Esperando amenazas...</td></tr>';
+                    if (!Array.isArray(threats) || threats.length === 0) {
+                        // Crear fila vacía de forma segura
+                        tbody.innerHTML = '';
+                        const row = document.createElement('tr');
+                        const cell = document.createElement('td');
+                        cell.colSpan = 5;
+                        cell.className = 'empty-state';
+                        cell.textContent = 'Esperando amenazas...';
+                        row.appendChild(cell);
+                        tbody.appendChild(row);
                         return;
                     }
                     
-                    tbody.innerHTML = threats.map(t => `
-                        <tr>
-                            <td>${t.ip}</td>
-                            <td>${t.puerto}</td>
-                            <td><span class="tipo-badge">${t.tipo}</span></td>
-                            <td><span class="severity-badge severity-${t.severidad}">${t.severidad}</span></td>
-                            <td>${new Date(t.timestamp).toLocaleString('es-ES')}</td>
-                        </tr>
-                    `).join('');
-                });
+                    // Limpiar tabla
+                    tbody.innerHTML = '';
+                    
+                    // Agregar filas de forma segura
+                    threats.forEach(t => {
+                        tbody.appendChild(crearFilaAmenaza(t));
+                    });
+                })
+                .catch(error => console.error('Error al obtener amenazas:', error));
         }
         
         // Actualizar al cargar
