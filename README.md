@@ -135,7 +135,7 @@ GNU General Public License v3.0
 
 ## 👨‍💻 Autor
 
-**Taks1221** - Proyecto de Ciberseguridad HIBRID TECHNOLOGIES
+**Taks1221**Edmundo ramirez jimenez MAIL. krakatoa1976@outlook.com- Proyecto de Ciberseguridad HIBRID TECHNOLOGIES
 
 ---
 
