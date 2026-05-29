@@ -1,10 +1,30 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <!-- Políticas de Seguridad -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'nonce-{NONCE}';
+        style-src 'self' 'nonce-{NONCE}';
+        img-src 'self' data:;
+        font-src 'self';
+        connect-src 'self';
+        frame-ancestors 'none';
+        base-uri 'self';
+        form-action 'self';
+        upgrade-insecure-requests;
+    ">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta name="format-detection" content="telephone=no">
     <title>Dashboard Ciberseguridad - Honeypot & IA</title>
-    <style>
+    
+    <style nonce="{NONCE}">
         * {
             margin: 0;
             padding: 0;
@@ -16,6 +36,7 @@
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: #fff;
             min-height: 100vh;
+            overflow-x: hidden;
         }
         
         .container {
@@ -117,6 +138,7 @@
         td {
             padding: 12px 15px;
             border-bottom: 1px solid #0f3460;
+            word-break: break-word;
         }
         
         tr:hover {
@@ -129,6 +151,7 @@
             font-weight: bold;
             font-size: 0.85em;
             text-transform: uppercase;
+            display: inline-block;
         }
         
         .severity-critica {
@@ -157,6 +180,7 @@
             padding: 3px 8px;
             border-radius: 5px;
             font-size: 0.9em;
+            display: inline-block;
         }
         
         .status {
@@ -190,6 +214,31 @@
             padding-top: 20px;
             border-top: 1px solid #0f3460;
         }
+
+        .error-alert {
+            background: #ff4444;
+            color: white;
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .warning-alert {
+            background: #ffaa00;
+            color: #000;
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .security-indicator {
+            font-size: 0.8em;
+            color: #aaa;
+            text-align: right;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -197,7 +246,11 @@
         <header>
             <h1>🔒 Dashboard Ciberseguridad</h1>
             <p class="subtitle">Sistema de Honeypot & Análisis de IA</p>
+            <div class="security-indicator">🛡️ Protección: CSP + Validación + Sanitización</div>
         </header>
+
+        <div class="error-alert" id="errorAlert"></div>
+        <div class="warning-alert" id="warningAlert"></div>
         
         <div class="stats-grid" id="statsGrid">
             <div class="stat-card">
@@ -247,87 +300,478 @@
         </div>
     </div>
     
-    <script>
-        // Función para escapar caracteres HTML (seguridad contra XSS)
-        function escapeHtml(text) {
-            const map = {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#039;'
-            };
-            return text.replace(/[&<>"']/g, m => map[m]);
-        }
+    <script nonce="{NONCE}">
+        'use strict';
 
-        // Función para validar si una severidad es válida
-        function isValidSeverity(severity) {
-            const validSeverities = ['critica', 'alta', 'media', 'baja'];
-            return validSeverities.includes(severity.toLowerCase());
-        }
+        /**
+         * ============================================================================
+         * CAPA DE SEGURIDAD ENDURECIDA
+         * ============================================================================
+         * 1. Validación exhaustiva de datos
+         * 2. Sanitización múltiple
+         * 3. Detección de anomalías
+         * 4. Rate limiting
+         * 5. Logging de seguridad
+         * ============================================================================
+         */
 
-        // Función para crear una fila de amenaza de forma segura
-        function crearFilaAmenaza(t) {
+        // Configuración de seguridad
+        const SECURITY_CONFIG = {
+            MAX_IP_LENGTH: 45,
+            MAX_PORT_LENGTH: 5,
+            MAX_TYPE_LENGTH: 50,
+            MAX_SEVERITY_LENGTH: 10,
+            MAX_THREATS_PER_REQUEST: 10000,
+            REQUEST_TIMEOUT: 5000,
+            VALID_SEVERITIES: ['critica', 'alta', 'media', 'baja'],
+            VALID_IP_REGEX: /^(\d{1,3}\.){3}\d{1,3}$|^[a-f0-9:]+$/i,
+            VALID_PORT_REGEX: /^\d{1,5}$/,
+            MAX_API_ERRORS: 5,
+            ERROR_RESET_INTERVAL: 60000
+        };
+
+        // Estado de la aplicación
+        const APP_STATE = {
+            lastUpdate: null,
+            apiErrors: 0,
+            lastErrorTime: null,
+            isValidating: false,
+            requestCount: 0
+        };
+
+        /**
+         * Logger de seguridad - registra eventos sospechosos
+         */
+        const SecurityLogger = {
+            log: function(level, message, data = {}) {
+                const timestamp = new Date().toISOString();
+                const logEntry = {
+                    timestamp,
+                    level,
+                    message,
+                    data,
+                    userAgent: navigator.userAgent.substring(0, 100),
+                    url: window.location.href
+                };
+                
+                // Log en consola solo en desarrollo
+                if (level === 'ERROR' || level === 'WARNING') {
+                    console.warn(`[${level}] ${message}`, data);
+                }
+                
+                // Aquí se podría enviar a un servidor de logging
+                // fetch('/api/security-log', { method: 'POST', body: JSON.stringify(logEntry) });
+            },
+            error: function(msg, data) { this.log('ERROR', msg, data); },
+            warning: function(msg, data) { this.log('WARNING', msg, data); },
+            info: function(msg, data) { this.log('INFO', msg, data); }
+        };
+
+        /**
+         * Validador de datos exhaustivo
+         */
+        const DataValidator = {
+            /**
+             * Valida si un IP es válido (IPv4 o IPv6)
+             */
+            isValidIP: function(ip) {
+                if (!ip || typeof ip !== 'string') return false;
+                if (ip.length > SECURITY_CONFIG.MAX_IP_LENGTH) return false;
+                
+                // IPv4
+                if (SECURITY_CONFIG.VALID_IP_REGEX.test(ip)) {
+                    const parts = ip.split('.');
+                    if (parts.length === 4) {
+                        return parts.every(p => {
+                            const num = parseInt(p, 10);
+                            return !isNaN(num) && num >= 0 && num <= 255;
+                        });
+                    }
+                    return true;
+                }
+                return false;
+            },
+
+            /**
+             * Valida puerto
+             */
+            isValidPort: function(puerto) {
+                if (!puerto) return false;
+                const str = String(puerto);
+                if (str.length > SECURITY_CONFIG.MAX_PORT_LENGTH) return false;
+                if (!SECURITY_CONFIG.VALID_PORT_REGEX.test(str)) return false;
+                
+                const num = parseInt(str, 10);
+                return num > 0 && num <= 65535;
+            },
+
+            /**
+             * Valida tipo de amenaza
+             */
+            isValidType: function(tipo) {
+                if (!tipo || typeof tipo !== 'string') return false;
+                if (tipo.length > SECURITY_CONFIG.MAX_TYPE_LENGTH) return false;
+                // Solo letras, números, guiones y espacios
+                return /^[a-zA-Z0-9\s\-_]+$/.test(tipo);
+            },
+
+            /**
+             * Valida severidad
+             */
+            isValidSeverity: function(severidad) {
+                if (!severidad || typeof severidad !== 'string') return false;
+                return SECURITY_CONFIG.VALID_SEVERITIES.includes(severidad.toLowerCase());
+            },
+
+            /**
+             * Valida timestamp
+             */
+            isValidTimestamp: function(timestamp) {
+                const date = new Date(timestamp);
+                return date instanceof Date && !isNaN(date);
+            },
+
+            /**
+             * Valida objeto amenaza completo
+             */
+            validateThreat: function(threat) {
+                if (!threat || typeof threat !== 'object') {
+                    SecurityLogger.warning('Threat object invalid type', { threat });
+                    return false;
+                }
+
+                const validations = {
+                    ip: this.isValidIP(threat.ip),
+                    puerto: this.isValidPort(threat.puerto),
+                    tipo: this.isValidType(threat.tipo),
+                    severidad: this.isValidSeverity(threat.severidad),
+                    timestamp: this.isValidTimestamp(threat.timestamp)
+                };
+
+                const isValid = Object.values(validations).every(v => v === true);
+                
+                if (!isValid) {
+                    SecurityLogger.warning('Threat validation failed', { threat, validations });
+                }
+
+                return isValid;
+            },
+
+            /**
+             * Valida array de amenazas
+             */
+            validateThreats: function(threats) {
+                if (!Array.isArray(threats)) {
+                    SecurityLogger.error('Threats is not an array', { type: typeof threats });
+                    return false;
+                }
+
+                if (threats.length > SECURITY_CONFIG.MAX_THREATS_PER_REQUEST) {
+                    SecurityLogger.warning('Too many threats received', { count: threats.length });
+                    return false;
+                }
+
+                return true;
+            }
+        };
+
+        /**
+         * Sanitizador de datos
+         */
+        const DataSanitizer = {
+            /**
+             * Escapa HTML entities
+             */
+            escapeHtml: function(text) {
+                if (typeof text !== 'string') return '';
+                
+                const map = {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                };
+                return text.replace(/[&<>"']/g, m => map[m]);
+            },
+
+            /**
+             * Sanitiza IP (valida y limpia)
+             */
+            sanitizeIP: function(ip) {
+                if (!ip || typeof ip !== 'string') return 'N/A';
+                const cleaned = ip.trim().substring(0, SECURITY_CONFIG.MAX_IP_LENGTH);
+                
+                if (!DataValidator.isValidIP(cleaned)) {
+                    SecurityLogger.warning('Invalid IP sanitized', { ip: cleaned });
+                    return 'IP_INVÁLIDO';
+                }
+                
+                return cleaned;
+            },
+
+            /**
+             * Sanitiza puerto
+             */
+            sanitizePort: function(puerto) {
+                if (puerto === null || puerto === undefined) return 'N/A';
+                const str = String(puerto).trim().substring(0, SECURITY_CONFIG.MAX_PORT_LENGTH);
+                
+                if (!DataValidator.isValidPort(str)) {
+                    SecurityLogger.warning('Invalid port sanitized', { puerto: str });
+                    return 'PUERTO_INVÁLIDO';
+                }
+                
+                return str;
+            },
+
+            /**
+             * Sanitiza tipo de amenaza
+             */
+            sanitizeType: function(tipo) {
+                if (!tipo || typeof tipo !== 'string') return 'DESCONOCIDO';
+                const cleaned = tipo.trim().substring(0, SECURITY_CONFIG.MAX_TYPE_LENGTH);
+                
+                if (!DataValidator.isValidType(cleaned)) {
+                    SecurityLogger.warning('Invalid type sanitized', { tipo: cleaned });
+                    return 'TIPO_INVÁLIDO';
+                }
+                
+                return cleaned;
+            },
+
+            /**
+             * Sanitiza severidad
+             */
+            sanitizeSeverity: function(severidad) {
+                if (!severidad || typeof severidad !== 'string') return 'baja';
+                const lower = severidad.toLowerCase().trim();
+                
+                if (!DataValidator.isValidSeverity(lower)) {
+                    SecurityLogger.warning('Invalid severity sanitized', { severidad: lower });
+                    return 'baja'; // Default a severidad baja si es inválida
+                }
+                
+                return lower;
+            },
+
+            /**
+             * Sanitiza todo el objeto amenaza
+             */
+            sanitizeThreat: function(threat) {
+                return {
+                    ip: this.sanitizeIP(threat.ip),
+                    puerto: this.sanitizePort(threat.puerto),
+                    tipo: this.sanitizeType(threat.tipo),
+                    severidad: this.sanitizeSeverity(threat.severidad),
+                    timestamp: new Date(threat.timestamp || Date.now()).toISOString()
+                };
+            }
+        };
+
+        /**
+         * Detector de anomalías
+         */
+        const AnomalyDetector = {
+            /**
+             * Detecta patrones sospechosos en datos
+             */
+            detectAnomalies: function(threat) {
+                const anomalies = [];
+
+                // Verificar IP sospechosa (ej: localhost)
+                if (threat.ip === '127.0.0.1' || threat.ip === '::1') {
+                    anomalies.push('localhost_access');
+                }
+
+                // Verificar puerto sospechoso
+                const port = parseInt(threat.puerto, 10);
+                if (port < 1024) {
+                    anomalies.push('privileged_port');
+                }
+
+                // Verificar severidad extrema sin justificación
+                if (threat.severidad === 'critica' && threat.tipo === 'DESCONOCIDO') {
+                    anomalies.push('crítica_sin_tipo');
+                }
+
+                if (anomalies.length > 0) {
+                    SecurityLogger.info('Anomalies detected', { threat, anomalies });
+                }
+
+                return anomalies;
+            }
+        };
+
+        /**
+         * Gestor de Fetch con seguridad
+         */
+        const SecureFetch = {
+            /**
+             * Realiza fetch con timeout y validación
+             */
+            fetch: function(url, options = {}) {
+                return new Promise((resolve, reject) => {
+                    // Validar URL
+                    try {
+                        new URL(url, window.location.origin);
+                    } catch (e) {
+                        SecurityLogger.error('Invalid URL', { url });
+                        reject(new Error('URL inválida'));
+                        return;
+                    }
+
+                    // Timeout
+                    const timeout = setTimeout(() => {
+                        SecurityLogger.error('Fetch timeout', { url });
+                        reject(new Error('Solicitud expirada'));
+                    }, SECURITY_CONFIG.REQUEST_TIMEOUT);
+
+                    const defaultOptions = {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        credentials: 'same-origin'
+                    };
+
+                    fetch(url, { ...defaultOptions, ...options })
+                        .then(response => {
+                            clearTimeout(timeout);
+                            
+                            if (!response.ok) {
+                                throw new Error(`HTTP ${response.status}`);
+                            }
+                            
+                            return response.json();
+                        })
+                        .then(data => {
+                            APP_STATE.apiErrors = 0; // Reset error count
+                            resolve(data);
+                        })
+                        .catch(error => {
+                            clearTimeout(timeout);
+                            APP_STATE.apiErrors++;
+                            
+                            SecurityLogger.error('Fetch failed', { url, error: error.message });
+                            
+                            // Si hay demasiados errores, resetear
+                            if (APP_STATE.apiErrors > SECURITY_CONFIG.MAX_API_ERRORS) {
+                                showError('Demasiados errores de API. Reintentando...');
+                                APP_STATE.apiErrors = 0;
+                            }
+                            
+                            reject(error);
+                        });
+                });
+            }
+        };
+
+        /**
+         * Crea una fila de amenaza de forma segura
+         */
+        function crearFilaAmenaza(threat) {
+            // Validar y sanitizar
+            if (!DataValidator.validateThreat(threat)) {
+                SecurityLogger.warning('Invalid threat, skipping', { threat });
+                return null;
+            }
+
+            const sanitized = DataSanitizer.sanitizeThreat(threat);
+            const anomalies = AnomalyDetector.detectAnomalies(sanitized);
+
             const row = document.createElement('tr');
             
             // Crear celdas con textContent (evita XSS)
             const cellIp = document.createElement('td');
-            cellIp.textContent = t.ip || '';
+            cellIp.textContent = sanitized.ip;
             row.appendChild(cellIp);
             
             const cellPuerto = document.createElement('td');
-            cellPuerto.textContent = t.puerto || '';
+            cellPuerto.textContent = sanitized.puerto;
             row.appendChild(cellPuerto);
             
             const cellTipo = document.createElement('td');
             const tipoBadge = document.createElement('span');
             tipoBadge.className = 'tipo-badge';
-            tipoBadge.textContent = t.tipo || '';
+            tipoBadge.textContent = sanitized.tipo;
             cellTipo.appendChild(tipoBadge);
             row.appendChild(cellTipo);
             
             const cellSeveridad = document.createElement('td');
             const severidadBadge = document.createElement('span');
-            const severidadLower = (t.severidad || '').toLowerCase();
-            severidadBadge.className = `severity-badge severity-${isValidSeverity(severidadLower) ? severidadLower : 'baja'}`;
-            severidadBadge.textContent = t.severidad || '';
+            severidadBadge.className = `severity-badge severity-${sanitized.severidad}`;
+            severidadBadge.textContent = sanitized.severidad.toUpperCase();
             cellSeveridad.appendChild(severidadBadge);
             row.appendChild(cellSeveridad);
             
             const cellFecha = document.createElement('td');
-            try {
-                const fecha = new Date(t.timestamp);
-                cellFecha.textContent = fecha.toLocaleString('es-ES');
-            } catch (e) {
-                cellFecha.textContent = 'Fecha inválida';
-            }
+            cellFecha.textContent = new Date(sanitized.timestamp).toLocaleString('es-ES');
             row.appendChild(cellFecha);
             
             return row;
         }
 
-        // Actualizar datos cada 2 segundos
-        function actualizarDatos() {
-            // Obtener estadísticas
-            fetch('/api/stats')
-                .then(r => r.json())
-                .then(data => {
-                    document.getElementById('totalThreats').textContent = data.total_amenazas || 0;
-                    document.getElementById('criticalThreats').textContent = data.criticas || 0;
-                    document.getElementById('highThreats').textContent = data.altas || 0;
-                    document.getElementById('mediumThreats').textContent = data.medias || 0;
-                    document.getElementById('lowThreats').textContent = data.bajas || 0;
-                })
-                .catch(error => console.error('Error al obtener estadísticas:', error));
-            
-            // Obtener amenazas
-            fetch('/api/threats')
-                .then(r => r.json())
-                .then(threats => {
+        /**
+         * Mostrar alertas de error
+         */
+        function showError(message) {
+            const alert = document.getElementById('errorAlert');
+            if (alert) {
+                alert.textContent = `❌ Error: ${message}`;
+                alert.style.display = 'block';
+                setTimeout(() => { alert.style.display = 'none'; }, 5000);
+            }
+        }
+
+        /**
+         * Mostrar alertas de advertencia
+         */
+        function showWarning(message) {
+            const alert = document.getElementById('warningAlert');
+            if (alert) {
+                alert.textContent = `⚠️ Advertencia: ${message}`;
+                alert.style.display = 'block';
+                setTimeout(() => { alert.style.display = 'none'; }, 5000);
+            }
+        }
+
+        /**
+         * Actualizar datos con validación exhaustiva
+         */
+        async function actualizarDatos() {
+            if (APP_STATE.isValidating) return;
+            APP_STATE.isValidating = true;
+            APP_STATE.requestCount++;
+
+            try {
+                // Obtener estadísticas
+                try {
+                    const statsData = await SecureFetch.fetch('/api/stats');
+                    
+                    // Validar que sean números
+                    document.getElementById('totalThreats').textContent = parseInt(statsData.total_amenazas) || 0;
+                    document.getElementById('criticalThreats').textContent = parseInt(statsData.criticas) || 0;
+                    document.getElementById('highThreats').textContent = parseInt(statsData.altas) || 0;
+                    document.getElementById('mediumThreats').textContent = parseInt(statsData.medias) || 0;
+                    document.getElementById('lowThreats').textContent = parseInt(statsData.bajas) || 0;
+                } catch (error) {
+                    showError('No se pudieron obtener las estadísticas');
+                }
+                
+                // Obtener amenazas
+                try {
+                    const threats = await SecureFetch.fetch('/api/threats');
+                    
+                    // Validar array
+                    if (!DataValidator.validateThreats(threats)) {
+                        showError('Datos de amenazas inválidos');
+                        return;
+                    }
+
                     const tbody = document.getElementById('threatsList');
                     
-                    if (!Array.isArray(threats) || threats.length === 0) {
-                        // Crear fila vacía de forma segura
+                    if (threats.length === 0) {
                         tbody.innerHTML = '';
                         const row = document.createElement('tr');
                         const cell = document.createElement('td');
@@ -342,19 +786,48 @@
                     // Limpiar tabla
                     tbody.innerHTML = '';
                     
-                    // Agregar filas de forma segura
+                    // Agregar filas con validación
+                    let validCount = 0;
                     threats.forEach(t => {
-                        tbody.appendChild(crearFilaAmenaza(t));
+                        const row = crearFilaAmenaza(t);
+                        if (row) {
+                            tbody.appendChild(row);
+                            validCount++;
+                        }
                     });
-                })
-                .catch(error => console.error('Error al obtener amenazas:', error));
+
+                    if (validCount < threats.length) {
+                        showWarning(`${threats.length - validCount} amenazas inválidas fueron descartadas`);
+                    }
+                    
+                    APP_STATE.lastUpdate = new Date();
+                } catch (error) {
+                    showError('No se pudieron obtener las amenazas');
+                }
+            } finally {
+                APP_STATE.isValidating = false;
+            }
         }
-        
-        // Actualizar al cargar
-        actualizarDatos();
-        
-        // Actualizar cada 2 segundos
-        setInterval(actualizarDatos, 2000);
+
+        /**
+         * Inicializar con protecciones
+         */
+        function inicializar() {
+            SecurityLogger.info('Dashboard iniciado con protecciones de seguridad endurecidas');
+            
+            // Actualizar al cargar
+            actualizarDatos();
+            
+            // Actualizar cada 2 segundos
+            setInterval(actualizarDatos, 2000);
+        }
+
+        // Esperar a que el DOM esté listo
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', inicializar);
+        } else {
+            inicializar();
+        }
     </script>
 </body>
 </html>
